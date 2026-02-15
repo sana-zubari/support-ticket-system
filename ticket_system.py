@@ -1,8 +1,9 @@
 import json
 import os
+from datetime import datetime, timedelta
 
 DATA_FILE = "tickets.json"
-
+LOG_FILE = "activity.log"
 
 # ---------------- FILE HANDLING ---------------- #
 
@@ -16,6 +17,27 @@ def load_tickets():
 def save_tickets(tickets):
     with open(DATA_FILE, "w") as file:
         json.dump(tickets, file, indent=4)
+
+def write_log(message):
+    with open(LOG_FILE, "a") as log:
+        log.write(f"{datetime.now()} : {message}\n")        
+
+# ---------------- SLA LOGIC ---------------- #
+
+def check_sla(ticket):
+    created = datetime.fromisoformat(ticket["created_at"])
+
+    if ticket["priority"] == "High":
+        limit = timedelta(hours=4)
+    elif ticket["priority"] == "Medium":
+        limit = timedelta(hours=8)
+    else:
+        limit = timedelta(hours=24)
+    
+    if datetime.now() - created > limit and ticket["status"] != "Closed":
+        return "BREACHED"
+    return "OK"
+
 
 
 # ---------------- TICKET OPERATIONS ---------------- #
@@ -31,11 +53,15 @@ def create_ticket():
         "id": ticket_id,
         "title": title,
         "priority": priority,
-        "status": "Open"
+        "status": "Open",
+        "created_at": datetime.now().isoformat(),
+        "history": ["Created"]
     }
 
     tickets.append(ticket)
     save_tickets(tickets)
+
+    write_log(f"Ticket {ticket_id} created")
 
     print(f"Ticket {ticket_id} created successfully!")
 
@@ -48,79 +74,77 @@ def view_tickets():
         return
 
     for t in tickets:
+        sla = check_sla(t)
         print("\n-------------------")
         print(f"ID: {t['id']}")
         print(f"Title: {t['title']}")
         print(f"Priority: {t['priority']}")
         print(f"Status: {t['status']}")
-
-
-def search_ticket():
-    tickets = load_tickets()
-    tid = int(input("Enter Ticket ID: "))
-
-    for t in tickets:
-        if t["id"] == tid:
-            print("\nTicket Found")
-            print(t)
-            return
-
-    print("Ticket not found.")
+        print(f"SLA: {sla}")
 
 
 def update_status():
     tickets = load_tickets()
-    tid = int(input("Enter Ticket ID: "))
+    tid = int(input("Ticket ID: "))
 
     for t in tickets:
         if t["id"] == tid:
-            new_status = input("New Status (Open/In Progress/Closed): ")
+            new_status = input("New Status (In Progress/Closed): ")
             t["status"] = new_status
+            t["history"].append(new_status)
             save_tickets(tickets)
-            print("Ticket updated.")
+            write_log(f"Ticket {tid} status changed to {new_status}")
+            print("Updated.")
             return
 
     print("Ticket not found.")
 
 
-def delete_ticket():
+def search_priority():
     tickets = load_tickets()
-    tid = int(input("Enter Ticket ID to delete: "))
+    p = input("Priority to filter: ")
+    
+    for t in tickets:
+        if t["priority"].lower() == p.lower():
+            print(f"nID {t['id']} - {t['title']} - {t['status']}")
 
-    updated = [t for t in tickets if t["id"] != tid]
+def ticket_history():
+    tickets = load_tickets()
+    tid = int(input("Ticket ID: "))
 
-    if len(updated) == len(tickets):
-        print("Ticket not found.")
-        return
-
-    save_tickets(updated)
-    print("Ticket deleted.")
-
-
+    for t in tickets:
+        if t["id"] == tid:
+            print("History:")
+            for h in t["history"]:
+                print("-", h)
+            return
+    
+    print("Ticket not found.")
+    
 # ---------------- MENU ---------------- #
 
 def menu():
     while True:
-        print("\n===== SUPPORT TICKET SYSTEM =====")
+        print("\n===== INCIDENT MANAGEMENT SYSTEM =====")
         print("1. Create Ticket")
-        print("2. View Tickets")
-        print("3. Search Ticket")
-        print("4. Update Status")
-        print("5. Delete Ticket")
+        print("2. View Tickets (with SLA)")
+        print("3. Update Status")
+        print("4. Filter by Priority")
+        print("5. View Ticket History")
         print("6. Exit")
 
-        choice = input("Select option: ")
+        choice = input("Option: ")
 
         if choice == "1":
             create_ticket()
         elif choice == "2":
             view_tickets()
         elif choice == "3":
-            search_ticket()
-        elif choice == "4":
             update_status()
+        elif choice == "4":
+            search_priority()
         elif choice == "5":
-            delete_ticket()
+            ticket_history()
         elif choice == "6":
             break
         else:
