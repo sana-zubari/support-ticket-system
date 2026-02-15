@@ -38,6 +38,15 @@ def check_sla(ticket):
         return "BREACHED"
     return "OK"
 
+def get_escalation(ticket):
+    created = datetime.fromiosformat(ticket["created_at"])
+    age = datetime.now() - created
+
+    if ticket["priority"] == "High" and age > timedelta(hours=2):
+        return "LEVEL 2"
+    elif ticket["priority"] == "Medium" and age > timedelta(hours=6):
+        return "LEVEL 1"
+    return "Normal"
 
 
 # ---------------- TICKET OPERATIONS ---------------- #
@@ -75,12 +84,15 @@ def view_tickets():
 
     for t in tickets:
         sla = check_sla(t)
+        esc = get_escalation(t)
+
         print("\n-------------------")
         print(f"ID: {t['id']}")
         print(f"Title: {t['title']}")
         print(f"Priority: {t['priority']}")
         print(f"Status: {t['status']}")
         print(f"SLA: {sla}")
+        print(f"Escalation: {esc}")
 
 
 def update_status():
@@ -120,18 +132,51 @@ def ticket_history():
             return
     
     print("Ticket not found.")
-    
+
+
+def dashboard():
+    tickets = load_tickets()
+
+    open_count = 0
+    breached = 0
+    high_priority = 0
+
+    for t in tickets:
+        if t["status"] != "Closed":
+            open_count =+ 1
+        if check_sla(t) == "BREACHED":
+            breached += 1
+        if t["priority"] == "High":
+            high_priority += 1
+
+    print("\n===== SYSTEM DASHBOARD =====")
+    print(f"Open Tickets: {open_count}")
+    print(f"SLA Breached: {breached}")
+    print(f"High Priority: {high_priority}")
+
+def view_logs():
+    if not os.path.exists(LOG_FILE):
+        print("No logs yet.")
+        return
+    with open(LOG_FILE, "r") as file:
+        print("\n===== ACTIVITY LOG =====")
+        print(file.read())
+
+
 # ---------------- MENU ---------------- #
 
 def menu():
     while True:
         print("\n===== INCIDENT MANAGEMENT SYSTEM =====")
         print("1. Create Ticket")
-        print("2. View Tickets (with SLA)")
+        print("2. View Tickets")
         print("3. Update Status")
         print("4. Filter by Priority")
         print("5. View Ticket History")
-        print("6. Exit")
+        print("6. Dashboard")
+        print("7. View Logs")
+        print("8. Exit")
+
 
         choice = input("Option: ")
 
@@ -146,6 +191,10 @@ def menu():
         elif choice == "5":
             ticket_history()
         elif choice == "6":
+            dashboard()
+        elif choice == "7":
+            view_logs()
+        elif choice == "8":
             break
         else:
             print("Invalid option")
