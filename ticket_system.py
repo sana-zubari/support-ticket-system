@@ -57,26 +57,30 @@ def create_ticket():
     ticket_id = len(tickets) + 1
     title = input("Enter issue title: ")
     priority = input("Priority (Low/Medium/High): ")
+    assignee = input("Assign to engineer: ")
+
 
     ticket = {
         "id": ticket_id,
         "title": title,
         "priority": priority,
+        "assignee": assignee,
         "status": "Open",
         "created_at": datetime.now().isoformat(),
-        "history": ["Created"]
+        "history": [f"Created and assigned to {assignee}"]
     }
 
     tickets.append(ticket)
     save_tickets(tickets)
 
-    write_log(f"Ticket {ticket_id} created")
+    write_log(f"Ticket {ticket_id} assigned to {assignee}")
 
     print(f"Ticket {ticket_id} created successfully!")
 
 
 def view_tickets():
     tickets = load_tickets()
+    print(f"Assigned To: {t['assignee']}")
 
     if not tickets:
         print("No tickets found.")
@@ -97,7 +101,12 @@ def view_tickets():
 
 def update_status():
     tickets = load_tickets()
-    tid = int(input("Ticket ID: "))
+
+    try:  
+        tid = int(input("Ticket ID: "))
+    except ValueError:
+        print("Invalid number.")
+        return
 
     for t in tickets:
         if t["id"] == tid:
@@ -122,8 +131,13 @@ def search_priority():
 
 def ticket_history():
     tickets = load_tickets()
-    tid = int(input("Ticket ID: "))
-
+    
+    try:
+        tid = int(input("Ticket ID: "))
+    except ValueError:
+        print("Invalid ticket number")
+        return
+    
     for t in tickets:
         if t["id"] == tid:
             print("History:")
@@ -163,6 +177,14 @@ def view_logs():
         print(file.read())
 
 
+def search_keyword():
+    tickets = load_tickets()
+    word = input("Enter keyword: ").lower()
+
+    for t in tickets:
+        if word in t["title"].lower():
+            print(f"ID {t['id']} | {t['title']} | {t['status']} | {t['priority']}")
+
 # ---------------- MENU ---------------- #
 
 def menu():
@@ -175,7 +197,8 @@ def menu():
         print("5. View Ticket History")
         print("6. Dashboard")
         print("7. View Logs")
-        print("8. Exit")
+        print("8. Search by Keyword")
+        print("9 Exit")
 
 
         choice = input("Option: ")
@@ -195,6 +218,8 @@ def menu():
         elif choice == "7":
             view_logs()
         elif choice == "8":
+            search_keyword()
+        elif choice == "9":
             break
         else:
             print("Invalid option")
